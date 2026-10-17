@@ -7,8 +7,9 @@
         <p v-if="fileName">{{ fileName }}</p>
         <p v-if="error" role="alert" class="error">{{ error }}</p>
         <p v-for="(warning, i) in warnings" :key="i">{{ warning }}</p>
-        <p v-if="analysis">利用率 {{ (analysis.totalUtilization * 100).toFixed(2) }}% · {{ analysis.schedulable ? '可调度' : '不可调度' }}</p>
-        <p v-if="systemTasks.some(t => t.nonConvergent)">未收敛任务显示最后实际迭代值，不是收敛 WCRT。</p>
+        <p v-if="analysis">利用率 {{ (analysis.totalUtilization * 100).toFixed(2) }}% · {{ analysis.schedulable === true ? '可调度' : analysis.schedulable === false ? '不可调度' : '可调度性未确定' }}</p>
+        <p v-if="systemTasks.some(t => t.unbounded)">部分任务无有限 WCRT，后续作业可能持续排队或无法获得执行时间。</p>
+        <p v-if="systemTasks.some(t => t.nonConvergent && !t.unbounded)">部分任务达到分析上限，尚未确定 WCRT。</p>
       </div>
       <TaskTable :task-informations="systemTasks"/>
       <GanttStateLegend/>

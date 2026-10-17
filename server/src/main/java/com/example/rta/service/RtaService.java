@@ -29,8 +29,6 @@ import java.util.Map;
 @Service
 public class RtaService {
 
-    private static final double EPSILON = 1e-9;
-
     @Value("${rta.input:}")
     private String inputPath;
 
@@ -81,6 +79,7 @@ public class RtaService {
         List<String> higherPriorityNames = new ArrayList<>();
         double totalUtilization = 0.0;
         int missCount = 0;
+        int unknownCount = 0;
         int starvedCount = 0;
 
         for (int i = 0; i < activeTasks.size(); ++i) {
@@ -90,8 +89,10 @@ public class RtaService {
             rtaTasks.add(new RtaTask(i + 1, task, result, new ArrayList<>(higherPriorityNames)));
 
             totalUtilization += task.getWcet() / task.getPeriod();
-            if (!result.schedulable) {
+            if (result.deadlineExceeded) {
                 ++missCount;
+            } else if (!result.converged) {
+                ++unknownCount;
             }
             if (result.starved) {
                 ++starvedCount;
@@ -100,7 +101,9 @@ public class RtaService {
         }
 
         RtaAnalysis analysis = new RtaAnalysis(coreCount, allTasks.size(), activeTasks.size(), skippedTasks.size(),
-                missCount, totalUtilization, totalUtilization <= 1.0 + EPSILON, missCount == 0);
+                missCount, totalUtilization, RtaEngine.utilizationAtMostOne(activeTasks),
+                missCount > 0 ? Boolean.FALSE : unknownCount > 0 ? null : Boolean.TRUE);
+        analysis.setUnknownCount(unknownCount);
 
         // 系统里每个任务的原始配置（顺带带上算出来的 WCRT）
         Map<Integer, RtaEngine.Result> resultById = new HashMap<>();
@@ -210,6 +213,6 @@ public class RtaService {
                 + String.format("%.4f", analysis.getTotalUtilization())
                 + (analysis.getUtilizationOk() ? "" : "（> 1，过载）")
                 + "，超过截止期 " + analysis.getMissCount() + " 个（其中被饿死 " + starvedCount + " 个），系统"
-                + (analysis.getSchedulable() ? "可调度" : "不可调度"));
+                + (analysis.getSchedulable() == null ? "可调度性未确定" : analysis.getSchedulable() ? "可调度" : "不可调度"));
     }
 }

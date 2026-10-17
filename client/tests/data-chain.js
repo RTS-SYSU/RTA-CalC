@@ -152,7 +152,8 @@ assert.equal(parent.selectJob,undefined)
 assert(!texts(parent._render()).includes('CPU'))
 assert.equal(JSON.stringify(parent.timeline),before)
 assert(!fs.existsSync(path.join(__dirname,'../src/components/RtaDetails.vue')))
-assert.equal(result.systemTasks[4].wcrt,227.7);assert.equal(result.systemTasks[5].wcrt,1217.3)
+assert.equal(result.systemTasks[4].wcrt,null);assert.equal(result.systemTasks[5].wcrt,null)
+assert.equal(result.systemTasks[4].lastIterationValue,227.7);assert.equal(result.systemTasks[5].lastIterationValue,1217.3)
 for(const horizon of [.3,33,100,1000])for(const width of [400,760,1280]){
   const axis=createTimeAxis(horizon,width)
   assert(axis.ticks.length<=Math.floor((width-40)/70)+2)
@@ -177,4 +178,48 @@ assert.equal(JSON.stringify(duplicate),dupeBefore)
 const badOwner=JSON.parse(JSON.stringify(duplicateResponse))
 badOwner.timeline.rows[0].states.find(s=>s.state==='executing').taskId=5
 assert.throws(()=>normalizeResponse(badOwner,duplicateInput),/Task ID/)
-console.log('PASS: finite last iterates, independent RTA audit, mixed geometry, adaptive axes, all 102 jobs in one table, 100 renders and zooms without timeline/analysis mutation, automatic Task ID colors')
+function fixture(name) {
+  const data=JSON.parse(fs.readFileSync(path.join(__dirname,'../../server/target/'+name),'utf8'))
+  return normalizeResponse(data,{tasks:data.systemTasks})
+}
+const arbitrary=fixture('rta-arbitrary-deadline-test.json')
+assert.equal(arbitrary.systemTasks[1].wcrt,118)
+assert.equal(arbitrary.systemTasks[1].schedulable,false)
+assert.equal(arbitrary.analysis.schedulable,false)
+const skipped=fixture('rta-skipped-test.json')
+for(const task of skipped.systemTasks) {
+  assert.equal(task.nonConvergent,false)
+  assert.equal(task.schedulable,null)
+  const row=new Vue({...tableRow,propsData:{taskInformation:task,fields:['id','WCET']}})
+  assert(!texts(row._render()).includes('末值'))
+  assert(!texts(row._render()).includes('未确定'))
+}
+const skippedPage=new Vue(parentComponent)
+skippedPage.systemTasks=skipped.systemTasks
+assert(!texts(skippedPage._render()).includes('分析上限'))
+for(const task of result.systemTasks.slice(3)) {
+  assert.equal(task.unbounded,true)
+  assert.equal(task.wcrt,null)
+  const row=new Vue({...tableRow,propsData:{taskInformation:task,fields:['id']}})
+  assert(texts(row._render()).includes('无界'))
+  assert(texts(row._render()).includes('miss'))
+}
+const unknownTask={id:1,WCET:1,period:2,deadline:10,converged:false,nonConvergent:true,
+  wcrt:null,lastIterationValue:3,schedulable:null}
+const unknown=normalizeResponse({systemTasks:[unknownTask],timeline:{rows:[]},analysis:{schedulable:null,totalUtilization:.5}}, {tasks:[unknownTask]})
+assert.equal(unknown.systemTasks[0].wcrt,null)
+assert.equal(unknown.systemTasks[0].schedulable,null)
+const unknownRow=new Vue({...tableRow,propsData:{taskInformation:unknown.systemTasks[0],fields:['id']}})
+assert(texts(unknownRow._render()).includes('未确定'))
+const unknownPage=new Vue(parentComponent)
+unknownPage.analysis=unknown.analysis;unknownPage.systemTasks=unknown.systemTasks
+assert(texts(unknownPage._render()).includes('可调度性未确定'))
+const precise=fixture('rta-small-times-test.json')
+const precisePanel=new Vue({...loadComponent(path.join(__dirname,'../src/components/gantt/GanttPanel.vue')),
+  propsData:{rows:precise.timeline.rows,tasks:precise.systemTasks,axis:createTimeAxis(.001,760),horizon:.001}})
+const preciseText=texts(precisePanel._render())
+assert(preciseText.includes('0.0001'))
+assert(preciseText.includes('0.0005'))
+for(const value of [0,.0004,.000000001,1.234567891])assert.equal(Number(precisePanel.format(value)),value)
+assert.equal(precisePanel.format(null),'/')
+console.log('PASS: arbitrary-deadline WCRT, unbounded/unknown/skipped states, precise times, geometry, 102 jobs, immutable zooms and Task ID colors')

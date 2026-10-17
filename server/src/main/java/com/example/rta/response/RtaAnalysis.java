@@ -12,7 +12,7 @@ public class RtaAnalysis {
     private String policy = "Fixed-Priority Preemptive";
 
     /** 分析方法。 */
-    private String method = "Joseph-Pandya response time equation";
+    private String method = "Fixed-priority busy-period response time analysis";
 
     /** 优先级约定。 */
     private String priorityRule = "priority 数值越小优先级越高";
@@ -28,6 +28,7 @@ public class RtaAnalysis {
 
     /** 超过截止期的任务数。 */
     private Integer missCount;
+    private Integer unknownCount = 0;
 
     /** 总利用率。 */
     private Double totalUtilization;
@@ -67,6 +68,8 @@ public class RtaAnalysis {
     public Integer getSkippedCount() { return this.skippedCount; }
 
     public Integer getMissCount() { return this.missCount; }
+    public Integer getUnknownCount() { return this.unknownCount; }
+    public void setUnknownCount(Integer unknownCount) { this.unknownCount = unknownCount; }
 
     public Double getTotalUtilization() { return this.totalUtilization; }
 

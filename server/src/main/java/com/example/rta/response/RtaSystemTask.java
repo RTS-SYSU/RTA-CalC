@@ -33,7 +33,7 @@ public class RtaSystemTask {
     /** 最差执行时间。 */
     private Double wcet;
 
-    /** 收敛时为 WCRT；否则为实际有限迭代末值，必须连同 converged/nonConvergent 解释。 */
+    /** 已证明的有限 WCRT；无界、未确定或跳过分析时为 null。 */
     private Double wcrt;
 
     /** 是否被饿死（响应时间为无穷大）。 */
@@ -41,6 +41,7 @@ public class RtaSystemTask {
     private Boolean schedulable;
     private Boolean converged;
     private Boolean nonConvergent;
+    private Boolean unbounded;
     private java.math.BigDecimal lastIterationValue;
     private String rtaNote;
     private java.util.Map<String,Object> rtaDetails;
@@ -56,13 +57,14 @@ public class RtaSystemTask {
         this.deadline = task.getDeadline();
         this.wcet = task.getWcet();
         this.wcrt = (result == null || !Double.isFinite(result.responseTime)) ? null : result.responseTime;
-        this.converged = result != null && result.converged;
+        this.converged = result == null ? null : result.converged;
         this.nonConvergent = result != null && result.nonConvergent;
+        this.unbounded = result != null && result.unbounded;
         this.lastIterationValue = result == null ? null : result.lastIterationValue;
         this.starved = result != null && result.starved;
         this.schedulable = result == null ? null
-                : result.converged ? result.schedulable
-                : result.deadlineExceeded ? false : null;
+                : result.converged ? Boolean.valueOf(result.schedulable)
+                : result.deadlineExceeded ? Boolean.FALSE : null;
         this.rtaNote = result == null ? "未参与 RTA 分析" : result.note;
         if (result != null) {
             this.rtaDetails = new java.util.LinkedHashMap<>();
@@ -72,6 +74,7 @@ public class RtaSystemTask {
             rtaDetails.put("initial",wcet); rtaDetails.put("higherPriorityTasks",result.higherPriorityTasks);
             rtaDetails.put("trace",result.trace); rtaDetails.put("converged",result.converged);
             rtaDetails.put("nonConvergent",nonConvergent); rtaDetails.put("lastIterationValue",lastIterationValue);
+            rtaDetails.put("unbounded",unbounded); rtaDetails.put("jobResponses",result.jobResponses);
         }
     }
 
@@ -87,6 +90,7 @@ public class RtaSystemTask {
     public java.util.Map<String,Object> getRtaDetails() { return this.rtaDetails; }
     public Boolean getConverged() { return converged; }
     public Boolean getNonConvergent() { return nonConvergent; }
+    public Boolean getUnbounded() { return unbounded; }
     public java.math.BigDecimal getLastIterationValue() { return lastIterationValue; }
 
     public void setWcrt(Double wcrt) {

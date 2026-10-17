@@ -51,10 +51,10 @@ class RtaEngineTests {
         assertThrows(IllegalArgumentException.class,()->RtaEngine.worstCaseResponseTime(
                 Arrays.asList(task(1,1,10,10),task(1,2,10,10)),1));
     }
-    @Test void nonConvergenceRetainsFiniteLastIterateAndExplicitFlag() {
+    @Test void nonConvergenceKeepsDiagnosticSeparateFromWcrt() {
         RtaEngine.Result r=pair(.99995,1,1,1);
-        assertFalse(r.converged);assertTrue(Double.isFinite(r.responseTime));assertTrue(r.deadlineExceeded);
-        assertTrue(r.nonConvergent);assertEquals(r.lastIterationValue.doubleValue(),r.responseTime);
+        assertFalse(r.converged);assertTrue(Double.isNaN(r.responseTime));assertTrue(r.deadlineExceeded);
+        assertTrue(r.nonConvergent);assertTrue(Double.isFinite(r.lastIterationValue.doubleValue()));
     }
     // Independent oracle using integer tenths, not the production decimal/ceil helper.
     private long referenceStep(long response,long cost,JsonNode tasks,int priority) {
@@ -78,14 +78,17 @@ class RtaEngineTests {
             assertEquals(input.get("WCET").asDouble(),output.getWcet());
             assertEquals(input.get("period").asDouble(),output.getPeriod());
             assertEquals(input.get("deadline").asDouble(),output.getDeadline());
-            if(i<4) {
+            if(i<3) {
                 long c=Math.round(input.get("WCET").asDouble()*10),r=c,next;
                 do {next=referenceStep(r,c,root.get("tasks"),input.get("priority").asInt());if(next==r)break;r=next;}while(true);
                 assertEquals(expected[i],r/10.0);
                 assertEquals(r/10.0,output.getWcrt());
                 assertEquals(r<=Math.round(input.get("deadline").asDouble()*10),output.getSchedulable());
+            } else if(i==3) {
+                assertFalse(output.getStarved());assertTrue(output.getUnbounded());assertNull(output.getWcrt());
+                assertEquals(63.9,output.getLastIterationValue().doubleValue());assertFalse(output.getSchedulable());
             } else {
-                assertTrue(output.getStarved());assertEquals(i==4?227.7:1217.3,output.getWcrt());assertEquals(false,output.getSchedulable());
+                assertTrue(output.getStarved());assertNull(output.getWcrt());assertEquals(i==4?227.7:1217.3,output.getLastIterationValue().doubleValue());assertEquals(false,output.getSchedulable());
                 assertTrue(output.getNonConvergent());assertFalse(output.getConverged());
                 long c=Math.round(input.get("WCET").asDouble()*10),r=c,d=Math.round(input.get("deadline").asDouble()*10);
                 for(int k=0;k<20 && r<=d;k++)r=referenceStep(r,c,root.get("tasks"),input.get("priority").asInt());
@@ -98,6 +101,7 @@ class RtaEngineTests {
     @Test void lvglCompleteIterationTrace() {
         List<PeriodicTask> tasks=Arrays.asList(task(3,10.6,33.6,33),task(4,10.6,33.6,33),task(8,1.5,200,200),task(15,20,33,30));
         RtaEngine.Result r=RtaEngine.worstCaseResponseTime(tasks,3);
-        assertEquals(63.9,r.responseTime);assertEquals(3,r.iterations);assertFalse(r.schedulable);
+        assertTrue(r.unbounded);assertFalse(r.converged);assertTrue(Double.isNaN(r.responseTime));
+        assertEquals(63.9,r.lastIterationValue.doubleValue());assertEquals(3,r.iterations);assertFalse(r.schedulable);
     }
 }

@@ -39,7 +39,7 @@ export default {
     task(row) { return this.tasks.find(t => String(t.id) === String(row.id)) },
     status(row) { const t = this.task(row); return t && t.schedulable === true ? 'pass' : t && t.schedulable === false ? 'miss' : '/' },
     position(time) { return 20 + time * this.axis.pixelsPerMs },
-    format(value) { return Number(Number(value).toFixed(3)) },
+    format(value) { return value == null || !Number.isFinite(Number(value)) ? '/' : String(Number(value)) },
     interferenceDetails(row) { return row.states.filter(s => s.state === 'interference').map(s => '[' + this.format(s.start) + ', ' + this.format(s.end) + ') ms · id ' + s.id).join('\n') || '0 ms' }
   }
 }

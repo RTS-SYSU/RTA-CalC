@@ -32,7 +32,7 @@ public class RtaTask {
     /** 利用率 C / T。 */
     private Double utilization;
 
-    /** 收敛的 R，或未收敛时实际有限迭代末值；参见 converged/note。 */
+    /** 已证明的有限 WCRT；其他情况为 null。 */
     private Double responseTimeMs;
 
     /** 截止期余量 D - R。 */
@@ -58,6 +58,7 @@ public class RtaTask {
 
     /** 是否被饿死。 */
     private Boolean starved;
+    private Boolean unbounded;
 
     public RtaTask(Integer rank, PeriodicTask task, RtaEngine.Result result, List<String> higherPriorityTaskNames) {
         this.rank = rank;
@@ -69,9 +70,10 @@ public class RtaTask {
         this.deadlineMs = task.deadlineOrDefault();
         this.utilization = task.getWcet() / task.getPeriod();
         this.starved = result.starved;
+        this.unbounded = result.unbounded;
         this.responseTimeMs = !Double.isFinite(result.responseTime) ? null : result.responseTime;
         this.slackMs = this.responseTimeMs == null ? null : task.deadlineOrDefault() - result.responseTime;
-        this.schedulable = result.converged ? result.schedulable : result.deadlineExceeded ? false : null;
+        this.schedulable = result.converged ? Boolean.valueOf(result.schedulable) : result.deadlineExceeded ? Boolean.FALSE : null;
         this.converged = result.converged;
         this.iterations = result.iterations;
         this.hpCount = higherPriorityTaskNames.size();
@@ -113,6 +115,7 @@ public class RtaTask {
     public String getNote() { return this.note; }
 
     public Boolean getStarved() { return this.starved; }
+    public Boolean getUnbounded() { return this.unbounded; }
 
     public void setRank(Integer rank) { this.rank = rank; }
 

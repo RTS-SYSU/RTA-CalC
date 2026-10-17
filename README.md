@@ -39,11 +39,11 @@ npm run dev:server
 npm run dev:client
 ```
 
-访问 http://localhost:8081，点击“导入 json”，可选择仓库中的 `server/src/main/resources/test.json`。页面展示任务参数、WCRT/迭代末值、pass/miss 状态及每次作业释放对应的甘特图。
+访问 http://localhost:8081，点击“导入 json”，可选择仓库中的 `server/src/main/resources/test.json`。页面展示任务参数、WCRT、pass/miss 状态及每次作业释放对应的甘特图。
 
 默认后端接口为 `http://localhost:8080/api/rta`。GET 分析默认输入，POST 分析请求体 JSON。前端接口地址可通过 `client/.env.local` 中的 `VUE_APP_RTA_API` 配置。
 
-所有时间参数使用毫秒，priority 数值越小优先级越高。未收敛任务显示的有限末值不是收敛 WCRT；静态分析结果与窗口内调度记录分别表示分析结论和实际观察过程。
+所有时间参数使用毫秒，priority 数值越小优先级越高。WCRT 分析覆盖忙期内连续作业，支持 deadline 大于 period；过载且无有限响应时间上界的任务显示“无界”，达到分析上限的任务显示“未确定”。静态分析结果与窗口内调度记录分别表示分析结论和实际观察过程。
 
 ## 测试与构建
 

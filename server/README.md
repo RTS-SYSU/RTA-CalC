@@ -70,16 +70,21 @@ Invoke-RestMethod -Uri http://localhost:8080/api/rta -Method Post -ContentType '
 
 ## 分析与调度语义
 
-`RtaEngine` 使用精确十进制进行临界时刻单作业递推，初值为任务自身 WCET：
+`RtaEngine` 使用精确十进制分析临界时刻开始的忙期。对第 q 个作业（q 从 0 开始）求解完成时刻不动点，并扣除该作业的释放时刻：
 
 ```text
-R_i(0) = C_i
-R_i(n+1) = C_i + Σ ceil(R_i(n) / T_j) × C_j，j ∈ hp(i)
+w_i(q) = (q + 1) × C_i + Σ ceil(w_i(q) / T_j) × C_j，j ∈ hp(i)
+R_i(q) = w_i(q) - q × T_i
+WCRT_i = max R_i(q)
 ```
 
-`hp(i)` 只包含 priority 严格小于当前任务的任务。静态递推不使用 phase，phase 用于时间线中的实际释放。
+`hp(i)` 只包含 priority 严格小于当前任务的任务。分析连续作业直到 `w_i(q) <= (q + 1) × T_i`，以覆盖忙期内自身排队带来的影响，支持 deadline 大于 period。静态分析以同步释放的临界时刻求最坏情况，不使用 phase；phase 用于时间线中的实际释放。
 
-收敛结果与 deadline 比较以判定可调度性；未收敛时保留最后实际有限迭代值及 `lastIterationValue`、`converged`、`nonConvergent` 等元数据，不用 Infinity 替代。连续过载或 deadline 大于 period 时，单作业不动点不能直接当作所有后续作业的响应时间上界。
+完成整个忙期分析后，将最大响应时间与 deadline 比较。本任务及所有更高优先级任务的总利用率严格大于 1 时，响应时间无有限上界，返回 `unbounded=true`、`wcrt=null` 和 `schedulable=false`；总利用率等于 1 不直接判为无界。
+
+所有作业合计最多进行 10,000 次递推。达到上限时 `wcrt=null`、`converged=false`；若已证明超过 deadline 则返回 miss，否则 `schedulable=null` 表示未确定。`lastIterationValue` 仅用于诊断，不作为 WCRT 返回。跳过分析的任务为 `converged=null`、`nonConvergent=false`。
+
+`analysis.missCount` 仅统计已证明 miss 的任务，`unknownCount` 统计尚未判定的任务。存在 miss 时系统不可调度；没有 miss 但仍有未确定任务时，系统 `schedulable=null`。
 
 时间线由 `MixedTimelineAdapter` 驱动调度器产生：
 
@@ -99,7 +104,7 @@ R_i(n+1) = C_i + Σ ceil(R_i(n) / T_j) × C_j，j ∈ hp(i)
 | `warnings` | 输入加载等过程中的提示 |
 | `timeline` | 甘特图观察窗口、CPU 记录、事件及作业行 |
 
-`systemTasks.rtaDetails` 包含干扰任务集合、逐轮输入/输出及每个高优先级任务的向上取整次数和干扰量。
+`systemTasks.rtaDetails.trace` 包含首作业逐轮输入/输出及各高优先级任务的向上取整次数和干扰量；`jobResponses` 包含已求解作业的 `jobIndex`、临界时刻下的 release、completion 和 responseTime。无界情况下这些有限诊断值不代表 WCRT。
 
 `timeline` 包含 `horizon`、`cpu`、`events`、`rows`，并提供 `engine` 和 `tickMs` 以标识调度引擎及时间量子。每次释放对应一个作业行，内部通过 `jobId = taskId:jobIndex` 保持身份稳定。
 

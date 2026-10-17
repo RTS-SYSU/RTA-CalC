@@ -25,16 +25,19 @@ function normalizeResponse(data, input) {
     const matches = results.filter(r => r.id != null && String(r.id) === String(source.id))
     if (matches.length > 1) throw new Error('任务 RTA 结果无法唯一匹配：' + source.id)
     const result = matches[0] || {}
-    const wcrt = number(source.wcrt == null ? result.responseTimeMs : source.wcrt)
+    const rawWcrt = number(source.wcrt == null ? result.responseTimeMs : source.wcrt)
     const deadline = number(source.deadline == null ? result.deadlineMs : source.deadline)
     const starved = boolean(source.starved == null ? result.starved : source.starved) === true
+    const unbounded = boolean(source.unbounded == null ? result.unbounded : source.unbounded) === true || starved
     const converged = boolean(source.converged == null ? result.converged : source.converged)
-    const nonConvergent = boolean(source.nonConvergent) === true || starved || converged === false
-    // Finite WCRT is compared without display rounding. Unbounded R is always a miss.
-    const scheduled = starved || wcrt !== null && deadline !== null && wcrt > deadline ? false
-      : converged === false ? boolean(source.schedulable == null ? result.schedulable : source.schedulable)
-        : wcrt !== null && deadline !== null ? wcrt <= deadline : boolean(source.schedulable == null ? result.schedulable : source.schedulable)
-    return freeze({ ...source, wcrt, deadline, starved, converged, nonConvergent, schedulable: scheduled,
+    const skipped = (data.skippedTasks || []).some(t => String(t.id) === String(source.id)) ||
+      number(source.WCET) === 0 || number(source.period) === 0
+    const nonConvergent = !skipped && (boolean(source.nonConvergent) === true || unbounded || converged === false)
+    const wcrt = skipped || nonConvergent ? null : rawWcrt
+    const explicitStatus = boolean(source.schedulable == null ? result.schedulable : source.schedulable)
+    const scheduled = skipped ? null : unbounded ? false : explicitStatus !== null ? explicitStatus
+      : nonConvergent ? null : wcrt !== null && deadline !== null ? wcrt <= deadline : null
+    return freeze({ ...source, wcrt, deadline, starved, unbounded, skipped, converged, nonConvergent, schedulable: scheduled,
       rtaNote: source.rtaNote || result.note || (scheduled === null ? '未获得 RTA 结果' : '按 WCRT <= deadline 判断') })
   })
   const sourceTimeline = data.timeline

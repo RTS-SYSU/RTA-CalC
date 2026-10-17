@@ -9,20 +9,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.LinkedHashMap;
 
-/**
- * Single-core fully preemptive fixed-priority RTA, B = 0.
- * Solves the requested single-job critical-instant recurrence:
- * R = C + sum(ceil(R / T_hp) * C_hp).
- * After a deadline miss, the fixed point is diagnostic; in an overloaded system
- * it must not be interpreted as a bound for every successive queued job.
- * All arithmetic uses the input decimal milliseconds without epsilon offsets.
+/** Fully preemptive fixed-priority RTA without blocking, including arbitrary deadlines.
+ * For each job q in the level-i busy period, solve
+ * w(q) = (q + 1) C_i + sum(ceil(w(q) / T_j) C_j), then R(q) = w(q) - q T_i.
+ * The busy period ends when w(q) <= (q + 1) T_i. WCRT is the maximum R(q).
+ * A finite iteration limit is an unknown result, never a schedulability proof.
  */
 public class RtaEngine {
     private static final int MAX_ITERATION = 10000;
 
     public static class Result {
+        // Set only after proving a finite WCRT for the complete busy period.
         public double responseTime = Double.NaN;
         public boolean starved;
+        public boolean unbounded;
         public boolean schedulable;
         public boolean converged;
         public boolean deadlineExceeded;
@@ -31,7 +31,9 @@ public class RtaEngine {
         public int iterations;
         public String note = "";
         public List<Map<String,Object>> higherPriorityTasks = new ArrayList<>();
+        // Detailed recurrence for q=0; later jobs have compact completion/response records.
         public List<Map<String,Object>> trace = new ArrayList<>();
+        public List<Map<String,Object>> jobResponses = new ArrayList<>();
     }
 
     private static BigDecimal decimal(double value) {
@@ -39,10 +41,9 @@ public class RtaEngine {
         return BigDecimal.valueOf(value);
     }
 
-    // Compare sum(C/T) against 1 as an exact rational, not a rounded double.
-    private static boolean higherPrioritySaturates(List<PeriodicTask> hp) {
+    private static int compareUtilizationToOne(List<PeriodicTask> tasks) {
         BigInteger numerator = BigInteger.ZERO, denominator = BigInteger.ONE;
-        for (PeriodicTask task : hp) {
+        for (PeriodicTask task : tasks) {
             BigDecimal c = decimal(task.getWcet()), t = decimal(task.getPeriod());
             int scale = Math.max(c.scale(), t.scale());
             BigInteger cost = c.movePointRight(scale).toBigIntegerExact();
@@ -52,14 +53,18 @@ public class RtaEngine {
             BigInteger gcd = numerator.gcd(denominator);
             numerator = numerator.divide(gcd); denominator = denominator.divide(gcd);
         }
-        return numerator.compareTo(denominator) >= 0;
+        return numerator.compareTo(denominator);
+    }
+
+    public static boolean utilizationAtMostOne(List<PeriodicTask> tasks) {
+        return compareUtilizationToOne(tasks) <= 0;
     }
 
     public static Result worstCaseResponseTime(List<PeriodicTask> tasks, int index) {
         PeriodicTask task = tasks.get(index);
-        BigDecimal cost = decimal(task.getWcet());
+        BigDecimal cost = decimal(task.getWcet()), period = decimal(task.getPeriod());
         BigDecimal deadline = decimal(task.deadlineOrDefault());
-        if (cost.signum() <= 0 || task.getPeriod() <= 0 || deadline.signum() < 0)
+        if (cost.signum() <= 0 || period.signum() <= 0 || deadline.signum() < 0)
             throw new IllegalArgumentException("RTA 要求 WCET/period > 0，deadline >= 0");
         List<PeriodicTask> hp = new ArrayList<>();
         for (PeriodicTask other : tasks) {
@@ -75,60 +80,72 @@ public class RtaEngine {
             h.put("id",higher.getId()); h.put("name",higher.getName()); h.put("priority",higher.getPriority());
             h.put("WCET",higher.getWcet()); h.put("period",higher.getPeriod()); result.higherPriorityTasks.add(h);
         }
-        boolean unbounded = higherPrioritySaturates(hp);
-        result.nonConvergent = unbounded;
-
-        BigDecimal response = cost;
-        for (int iteration = 1; iteration <= MAX_ITERATION; iteration++) {
-            result.iterations = iteration;
-            BigDecimal next = cost;
-            List<Map<String,Object>> contributions = new ArrayList<>();
-            for (PeriodicTask higher : hp) {
-                BigDecimal releases = response.divide(decimal(higher.getPeriod()), 0, RoundingMode.CEILING);
-                BigDecimal interference = releases.multiply(decimal(higher.getWcet()));
-                next = next.add(interference);
-                Map<String,Object> h = new LinkedHashMap<>();
-                h.put("id",higher.getId()); h.put("name",higher.getName()); h.put("WCET",higher.getWcet());
-                h.put("period",higher.getPeriod()); h.put("count",releases); h.put("interference",interference);
-                contributions.add(h);
-            }
-            Map<String,Object> step = new LinkedHashMap<>(); step.put("iteration",iteration);
-            step.put("response",response); step.put("next",next); step.put("contributions",contributions);
-            result.trace.add(step);
-            result.lastIterationValue = next;
-            if (Double.isFinite(next.doubleValue())) result.responseTime = next.doubleValue();
-            result.deadlineExceeded = unbounded || next.compareTo(deadline) > 0;
-            if (unbounded && next.compareTo(deadline) > 0) {
-                // F(R) >= C + U_hp * R > R: no finite fixed point. Keep actual rounds up to miss.
-                result.starved = true;
-                result.note = "miss / non-convergent：高优先级利用率 >= 1，已证明无有限不动点；显示最后实际迭代值 "
-                        + next.toPlainString() + " ms，不是收敛 WCRT。保留迭代至首次超过 deadline 的全部明细";
-                return result;
-            }
-            if (next.compareTo(response) == 0) {
-                result.converged = true;
-                result.responseTime = next.doubleValue();
-                if (!Double.isFinite(result.responseTime)) {
-                    result.responseTime = Double.NaN;
-                    result.note = "已收敛，但响应时间超出接口数值范围";
-                    return result;
+        result.starved = compareUtilizationToOne(hp) >= 0;
+        List<PeriodicTask> level = new ArrayList<>(hp); level.add(task);
+        result.unbounded = compareUtilizationToOne(level) > 0;
+        result.deadlineExceeded = result.unbounded;
+        BigDecimal previousCompletion = BigDecimal.ZERO, worst = BigDecimal.ZERO;
+        for (int job = 0; result.iterations < MAX_ITERATION; job++) {
+            BigDecimal ownCost = cost.multiply(BigDecimal.valueOf(job + 1L));
+            BigDecimal release = period.multiply(BigDecimal.valueOf(job));
+            BigDecimal window = ownCost.max(previousCompletion.add(cost));
+            boolean fixed = false;
+            while (result.iterations < MAX_ITERATION) {
+                result.iterations++;
+                BigDecimal next = ownCost;
+                List<Map<String,Object>> contributions = new ArrayList<>();
+                for (PeriodicTask higher : hp) {
+                    BigDecimal releases = window.divide(decimal(higher.getPeriod()), 0, RoundingMode.CEILING);
+                    BigDecimal interference = releases.multiply(decimal(higher.getWcet()));
+                    next = next.add(interference);
+                    if (job == 0) {
+                        Map<String,Object> h = new LinkedHashMap<>();
+                        h.put("id",higher.getId()); h.put("name",higher.getName()); h.put("WCET",higher.getWcet());
+                        h.put("period",higher.getPeriod()); h.put("count",releases); h.put("interference",interference);
+                        contributions.add(h);
+                    }
                 }
-                result.schedulable = !result.deadlineExceeded;
-                result.note = result.schedulable ? "指定递推收敛，R <= deadline"
-                        : "指定递推收敛，但 R > deadline；数值仅描述临界时刻首个作业";
+                if (job == 0) {
+                    Map<String,Object> step = new LinkedHashMap<>(); step.put("iteration",result.iterations);
+                    step.put("response",window); step.put("next",next); step.put("contributions",contributions);
+                    result.trace.add(step);
+                }
+                result.lastIterationValue = next.subtract(release);
+                result.deadlineExceeded |= result.lastIterationValue.compareTo(deadline) > 0;
+                if (result.starved && result.lastIterationValue.compareTo(deadline) > 0) return unbounded(result);
+                fixed = next.compareTo(window) == 0;
+                window = next;
+                if (fixed) break;
+            }
+            if (!fixed) break;
+            Map<String,Object> jobResult = new LinkedHashMap<>();
+            jobResult.put("jobIndex",job); jobResult.put("release",release);
+            jobResult.put("completion",window); jobResult.put("responseTime",window.subtract(release));
+            result.jobResponses.add(jobResult);
+            if (result.unbounded) return unbounded(result);
+            worst = worst.max(window.subtract(release));
+            if (window.compareTo(release.add(period)) <= 0) {
+                if (!Double.isFinite(worst.doubleValue())) break;
+                result.responseTime = worst.doubleValue();
+                result.converged = true;
+                result.schedulable = worst.compareTo(deadline) <= 0;
+                result.note = "已分析忙期内 " + (job + 1) + " 个作业，WCRT = " + worst.toPlainString()
+                        + (result.schedulable ? " ms，满足 deadline" : " ms，超过 deadline");
                 return result;
             }
-            response = next;
+            previousCompletion = window;
         }
-        if (unbounded) {
-            result.starved = true;
-            result.note = "高优先级利用率 >= 1，已证明无有限不动点；详细迭代达到上限";
-            return result;
-        }
+        if (result.unbounded) return unbounded(result);
         result.nonConvergent = true;
-        result.note = "达到迭代上限，未证明收敛；显示最后实际迭代值，不是已求得 WCRT"
-                + (result.deadlineExceeded ? "，已证明超过 deadline" : "");
+        result.note = "达到分析上限，尚未确定 WCRT；迭代末值仅供诊断"
+                + (result.deadlineExceeded ? "，已证明超过 deadline" : "，可调度性未确定");
+        return result;
+    }
+
+    private static Result unbounded(Result result) {
+        result.nonConvergent = true;
+        result.note = result.starved ? "高优先级利用率 >= 1，无有限 WCRT；迭代末值仅供诊断"
+                : "本任务及高优先级任务总利用率 > 1，后续作业排队持续增长，无有限 WCRT；首作业结果仅供诊断";
         return result;
     }
 }
-
