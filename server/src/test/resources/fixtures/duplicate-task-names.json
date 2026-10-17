@@ -1,0 +1,7 @@
+{
+  "system": { "core_count": 1 },
+  "tasks": [
+    { "id": 4, "name": "LVGL", "function": "", "partition": 0, "priority": 15, "period": 200, "phase": 0, "deadline": 15, "WCET": 20 },
+    { "id": 5, "name": "LVGL", "function": "", "partition": 0, "priority": 25, "period": 200, "phase": 0, "deadline": 60, "WCET": 30 }
+  ]
+}

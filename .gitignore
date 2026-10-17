@@ -1,0 +1,16 @@
+# Dependencies and build output
+**/node_modules/
+**/dist/
+**/target/
+
+# Local configuration and logs
+.env.local
+.env.*.local
+*.log
+
+# Editor and OS files
+.idea/
+.vscode/
+*.iml
+.DS_Store
+Thumbs.db

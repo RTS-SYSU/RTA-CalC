@@ -1,0 +1,13 @@
+{
+  "name": "single-core-rta-simulator",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "install:client": "npm --prefix client ci",
+    "dev:client": "npm --prefix client run serve",
+    "dev:server": "node scripts/project.cjs serve",
+    "test": "node scripts/project.cjs test",
+    "build": "node scripts/project.cjs build",
+    "verify": "node scripts/project.cjs verify"
+  }
+}
