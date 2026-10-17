@@ -4,7 +4,7 @@
 
 ## 环境与目录
 
-需要 Node.js 和 npm，以及本仓库的 `server` 后端服务。Mixed 绘图组件已内置在 `src/components/mixed/`，无需其他仓库。
+需要 Node.js 和 npm，以及本仓库的 `server` 后端服务。绘图组件位于 `src/components/mixed/`，无需其他仓库。
 
 ## 安装与启动
 
@@ -46,7 +46,7 @@ VUE_APP_RTA_API=http://localhost:8080/api/rta
 | --- | --- |
 | `src/components/GanttComponent.vue` | JSON 导入、接口请求与页面状态 |
 | `src/components/taskDetails/` | 任务配置及分析结果表 |
-| `src/components/gantt/` | 甘特图面板与 Mixed 绘图组件适配 |
+| `src/components/gantt/` | 甘特图面板与绘图组件适配 |
 | `src/utils/rtaResponse.js` | 响应归一化与任务 ID 关联 |
 | `src/utils/timeAxis.js` | 时间轴与缩放计算 |
 

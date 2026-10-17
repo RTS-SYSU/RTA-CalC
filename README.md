@@ -2,7 +2,7 @@
 
 单核固定优先级响应时间分析与调度可视化工具。使用 Vue 2 前端导入任务 JSON，由 Spring Boot 后端计算静态 RTA 结果并生成任务甘特图。
 
-本仓库包含前后端、所需的 Mixed 调度与绘图源码，以及测试输入；构建和测试不依赖仓库外的项目或数据文件。
+本仓库包含前后端、调度与绘图组件，以及测试输入；构建和测试不依赖仓库外的项目或数据文件。
 
 ## 目录
 
@@ -12,8 +12,7 @@ Single-Core-RTA-Simulator/
 ├── server/                 # Spring Boot 后端，默认端口 8080
 │   └── src/test/resources/fixtures/  # 数据链测试输入
 ├── scripts/                # 跨平台构建及测试入口
-├── package.json
-└── THIRD_PARTY_NOTICES.md   # 复用源码来源
+└── package.json
 ```
 
 ## 环境与安装
@@ -70,4 +69,3 @@ java -jar server/target/rta-serve-side-0.0.1-SNAPSHOT.jar
 
 - [前端说明](client/README.md)：页面、缩放与结果展示。
 - [后端说明](server/README.md)：输入字段、API、分析与调度语义。
-- [复用源码说明](THIRD_PARTY_NOTICES.md)：内置 Mixed 源码来源。

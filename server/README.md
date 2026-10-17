@@ -1,10 +1,10 @@
 # RTA 单核响应时间分析后端
 
-基于 Java 8 / Spring Boot 2.7.6 的单核固定优先级响应时间分析服务。读取任务 JSON，计算静态响应时间分析结果，并调用 Mixed 原始调度器生成任务甘特图数据，供配套前端展示。
+基于 Java 8 / Spring Boot 2.7.6 的单核固定优先级响应时间分析服务。读取任务 JSON，计算静态响应时间分析结果，并调用调度器生成任务甘特图数据，供配套前端展示。
 
 ## 环境与目录
 
-需要 JDK 8 及以上版本，使用本目录的 Maven Wrapper 构建。Mixed 调度器及其数据类型已内置在 `src/main/java/com/example/serveside/`，无需其他仓库。RTA 应用位于 `com.example.rta`，通过 `MixedTimelineAdapter` 调用调度器。源码来源见 [复用说明](../THIRD_PARTY_NOTICES.md)。
+需要 JDK 8 及以上版本，使用本目录的 Maven Wrapper 构建。调度器及其数据类型位于 `src/main/java/com/example/serveside/`，无需其他仓库。RTA 应用位于 `com.example.rta`，通过 `MixedTimelineAdapter` 调用调度器。
 
 ## 启动服务
 
@@ -81,9 +81,9 @@ R_i(n+1) = C_i + Σ ceil(R_i(n) / T_j) × C_j，j ∈ hp(i)
 
 收敛结果与 deadline 比较以判定可调度性；未收敛时保留最后实际有限迭代值及 `lastIterationValue`、`converged`、`nonConvergent` 等元数据，不用 Infinity 替代。连续过载或 deadline 大于 period 时，单作业不动点不能直接当作所有后续作业的响应时间上界。
 
-时间线由 `MixedTimelineAdapter` 驱动原始 Mixed 调度器产生：
+时间线由 `MixedTimelineAdapter` 驱动调度器产生：
 
-- 将输入优先级按 rank 转换，保持 Mixed 内部“大数优先”规则与 RTA 输入“小数优先”语义一致。
+- 将输入优先级按 rank 转换，保持调度器内部“大数优先”规则与 RTA 输入“小数优先”语义一致。
 - 将毫秒按精确公共量子转换为整数 ticks，输出时还原毫秒，不舍入输入时间；超过 2,000,000 ticks 或 20,000 个作业的输入会被拒绝。
 - 固定窗口内持续调度，即使出现 deadline miss 也继续观察；同一任务的作业按 FIFO 处理。
 - 执行区间和完成事件取自原始记录，区间采用 `[start, end)`；窗口末尾未完成或被饿死的作业不会生成虚假的完成时间。
@@ -101,7 +101,7 @@ R_i(n+1) = C_i + Σ ceil(R_i(n) / T_j) × C_j，j ∈ hp(i)
 
 `systemTasks.rtaDetails` 包含干扰任务集合、逐轮输入/输出及每个高优先级任务的向上取整次数和干扰量。
 
-`timeline` 包含 `horizon`、`cpu`、`events`、`rows`，并提供 `engine` 和 `tickMs` 以追溯调度来源。每次释放对应一个作业行，内部通过 `jobId = taskId:jobIndex` 保持身份稳定。
+`timeline` 包含 `horizon`、`cpu`、`events`、`rows`，并提供 `engine` 和 `tickMs` 以标识调度引擎及时间量子。每次释放对应一个作业行，内部通过 `jobId = taskId:jobIndex` 保持身份稳定。
 
 `interference` 是观察窗口内，作业已释放但由其他任务占用 CPU 的累计时长，区间中的 ID 标识实际占用 CPU 的任务。同一任务旧作业引起的等待单独记为 `queued`。二者均为调度记录的派生统计，不是输入字段，也不是静态 WCRT；未完成作业仅统计窗口内已观察到的等待。
 
@@ -120,5 +120,5 @@ R_i(n+1) = C_i + Σ ceil(R_i(n) / T_j) × C_j，j ∈ hp(i)
 java -jar target/rta-serve-side-0.0.1-SNAPSHOT.jar
 ```
 
-测试输入全部位于 `src/test/resources/fixtures/`，覆盖静态递推、输入校验、时间线、Mixed 源码复用及数据链一致性。后端测试通过后会生成 `target/rta-response-test.json`，随后可在前端执行 `npm run test:data-chain`。
+测试输入全部位于 `src/test/resources/fixtures/`，覆盖静态递推、输入校验、时间线及数据链一致性。后端测试通过后会生成 `target/rta-response-test.json`，随后可在前端执行 `npm run test:data-chain`。
 
