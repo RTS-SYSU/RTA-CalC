@@ -1,4 +1,4 @@
-# RTA 单核响应时间分析后端
+# RTA-CalC 后端
 
 基于 Java 8 / Spring Boot 2.7.6 的单核固定优先级响应时间分析服务。读取任务 JSON，计算静态响应时间分析结果，并调用调度器生成任务甘特图数据，供配套前端展示。
 
@@ -122,7 +122,7 @@ WCRT_i = max R_i(q)
 打包后可运行：
 
 ```powershell
-java -jar target/rta-serve-side-0.0.1-SNAPSHOT.jar
+java -jar target/rta-calc-server-0.0.1-SNAPSHOT.jar
 ```
 
 测试输入全部位于 `src/test/resources/fixtures/`，覆盖静态递推、输入校验、时间线及数据链一致性。后端测试通过后会生成 `target/rta-response-test.json`，随后可在前端执行 `npm run test:data-chain`。

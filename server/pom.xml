@@ -9,10 +9,10 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.example</groupId>
-	<artifactId>rta-serve-side</artifactId>
+	<artifactId>rta-calc-server</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>rta-serve-side</name>
-	<description>rta-serve-side</description>
+	<name>RTA-CalC Server</name>
+	<description>RTA-CalC single-core response time analysis server</description>
 	<properties>
 		<java.version>1.8</java.version>
 	</properties>

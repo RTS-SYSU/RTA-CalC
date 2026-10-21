@@ -1,4 +1,4 @@
-# Single-Core-RTA-Simulator
+# RTA-CalC
 
 单核固定优先级响应时间分析与调度可视化工具。使用 Vue 2 前端导入任务 JSON，由 Spring Boot 后端计算静态 RTA 结果并生成任务甘特图。
 
@@ -7,7 +7,7 @@
 ## 目录
 
 ```text
-Single-Core-RTA-Simulator/
+RTA-CalC/
 ├── client/                 # Vue 前端，默认端口 8081
 ├── server/                 # Spring Boot 后端，默认端口 8080
 │   └── src/test/resources/fixtures/  # 数据链测试输入
@@ -57,10 +57,10 @@ npm run verify    # 后端 clean/package、前端 lint、数据链测试和生�
 
 后端测试自动生成 `server/target/rta-response-test.json` 和重复名称场景响应，前端数据链测试直接消费这些结果。所有测试输入均随仓库提供。
 
-构建产物为 `client/dist/` 和 `server/target/rta-serve-side-0.0.1-SNAPSHOT.jar`。可在仓库根目录运行后端 JAR：
+构建产物为 `client/dist/` 和 `server/target/rta-calc-server-0.0.1-SNAPSHOT.jar`。可在仓库根目录运行后端 JAR：
 
 ```powershell
-java -jar server/target/rta-serve-side-0.0.1-SNAPSHOT.jar
+java -jar server/target/rta-calc-server-0.0.1-SNAPSHOT.jar
 ```
 
 前端构建产物需由静态文件服务器提供；部署时在构建前配置后端接口地址。`node_modules/`、`dist/`、`target/` 和本地环境配置已被 Git 忽略。
