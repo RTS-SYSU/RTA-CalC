@@ -1,0 +1,76 @@
+{
+  "meta": {
+    "title": "khd_f450a 单核 RTA 输入参数",
+    "product": "khd_f450a_uniproton_hw",
+    "rule": "值为 null 的请填写；已填的值如与实际不符，请直接改。确实拿不到的填 \"unknown\" 并注明原因。",
+    "note": "本文件只索取计算响应时间所必需的参数。"
+  },
+
+  "glossary": {
+    "sections": {
+      "core": "核心数量=1",
+      "tasks": "任务个数",
+      "scheduler":"调度策略,如FPS或EDF;是否支持抢占",
+      "protocol": "资源共享协议（如PIP或PCP,决定阻塞时间的计算方式）",
+      "resources": "共享资源个数",
+      "interrupts_period": "最小中断周期",
+      "interrupts_wcet": "单次中断最大时间(ms)"
+    },
+    "task_fields": {
+      "name": "任务名称",
+      "prio": "任务优先级，数值越小越高",
+      "period_ms": "任务周期，单位毫秒（注意 C 代码内部用 tick）",
+      "deadline_ms": "相对周期起点的期限，单位毫秒",
+      "wcet_ms": "不含临界区执行时间,该任务的最坏执行时间，单位毫秒。请填安全上界；若只能给观测最大值请注明",
+      "min_interarrival_ms": "事件驱动任务的最小到达间隔，单位毫秒（代替周期使用）",
+      "kind": "periodic=固定周期 / event=事件驱动"
+    },
+    "resource_fields": {
+      "name": "资源名称或者编号",
+      "shared_by": "访问该资源的任务清单（用于推导阻塞关系）",
+      "num_of_acc": "各任务单次运行访问资源的次数",
+      "cs_maxlen": "临界区最大执行时间,单位微秒",
+      "mutex_protocol": "PIP=优先级继承 / ceiling=优先级天花板 / none=无协议 / other",
+      "has_nested_locking": "是否存在临界区嵌套（持有资源期间再申请另一个）"
+    },
+    "excluded": {
+      "notification_semaphores": "仅用于任务间通知/唤醒的信号量（如 s_printSem、g_uartRxSem、s_semAB/s_semBA）不是 resources"
+    }
+  },
+
+  "system": {
+    "cores": 1,
+    "scheduler": null,
+    "protocol": {
+      "protocol_name": null,
+      "has_nested_locking": null
+    }
+  },
+
+  "tasks": [
+    { "name": "SwLatA",     "prio": 3,  "kind": "periodic",   "period_ms": 33.6, "deadline_ms": 33.6, "wcet_ms": 8 },
+    { "name": "SwLatB",     "prio": 4,  "kind": "event",      "min_interarrival_ms": null, "wcet_ms": 4 },
+    { "name": "tcpip",      "prio": 6,  "kind": "event",      "min_interarrival_ms": null, "wcet_ms": 5 },
+    { "name": "PwrCalc",    "prio": 8,  "kind": "periodic",   "period_ms": 200,  "deadline_ms": 200,  "wcet_ms": 5 },
+    { "name": "LVGL",       "prio": 15, "kind": "periodic",   "period_ms": 33,   "deadline_ms": 33,   "wcet_ms": 25 },
+    { "name": "LwipStress", "prio": 20, "kind": "periodic",   "period_ms": 1000, "deadline_ms": null, "wcet_ms": 5 },
+    { "name": "PMTask",     "prio": 25, "kind": "periodic",   "period_ms": 200,  "deadline_ms": 200,  "wcet_ms": 2 },
+    { "name": "OMTask",     "prio": 29, "kind": "periodic",   "period_ms": 1000, "deadline_ms": 1000, "wcet_ms": 5 },
+    { "name": "PrintTask",  "prio": 30, "kind": "event",      "min_interarrival_ms": null, "wcet_ms": 15 },
+    { "name": "Idle",       "prio": 31, "kind": "background", "wcet_ms": 0.01 }
+  ],
+  "task_note": "以上均为示例,请根据真实代码提供。是否还有本表之外的任务？请确认上述数据是否属实并确认上述任务运行期全部创建成功",
+  "wcet_note": "wcet_ms请提供不包含临界区的时间",
+
+  "resources": [
+    { "name": "print_ring",           "shared_by": ["PwrCalc", "LVGL", "LwipStress", "PMTask", "OMTask", "PrintTask"], "num_of_acc": [null, null, null, null, null, null], "cs_maxlen": null},
+    { "name": "periodic_sched_table", "shared_by": ["SwLatA", "PwrCalc", "LVGL", "PMTask", "OMTask"], "num_of_acc": [null, null, null, null, null], "cs_maxlen": null},
+    { "name": "uart0",                "shared_by": ["PrintTask", "SwLatA"], "num_of_acc": [null, null], "cs_maxlen": null}
+  ],
+  "resources_note": "本段指需要互斥保护的共享对象，不是 periodic_tasks.json 里的 mutex_groups（那是时间窗声明）。请补充是否有未列出的、特别是带互斥锁的资源",
+
+  "hwi": {
+    "interrupts_period": null,
+    "interrupts_wcet": null
+  }
+}

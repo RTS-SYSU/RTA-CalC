@@ -60,7 +60,7 @@ for (const width of [400,760,1280]) {
     eventInformations: wrapper.eventInformations,eventTimePoints:wrapper.eventTimePoints,timeAxisLength:axis.columns,axisCellWidth:axis.cellWidth,criticalitySwitchTime:-1
   } })
   wrapper.eventInformations.forEach((e,i)=> {
-    const actual=row.states.filter(s=>['executing','interference','idle'].includes(s.state))[i]
+    const actual=row.states.filter(s=>['executing','interference','queued','idle'].includes(s.state))[i]
     assert(Math.abs(parseFloat(renderer.duration(e).width)-(actual.end-actual.start)*axis.pixelsPerMs)<1e-8)
     assert(Math.abs(parseFloat(renderer.duration(e).left)-actual.start*axis.pixelsPerMs)<1e-8)
   })
@@ -186,6 +186,32 @@ const arbitrary=fixture('rta-arbitrary-deadline-test.json')
 assert.equal(arbitrary.systemTasks[1].wcrt,118)
 assert.equal(arbitrary.systemTasks[1].schedulable,false)
 assert.equal(arbitrary.analysis.schedulable,false)
+// The second low-priority job waits for its predecessor from 100 to 114 ms.
+// Render that waiting time even when the observation window ends before completion.
+const queuedJob=arbitrary.timeline.rows.find(r=>r.jobId==='2:1')
+assert.equal(queuedJob.queued,14)
+assert.equal(queuedJob.completion,null)
+for(const interval of [1,10,100]) {
+  const axis=createTimeAxis(arbitrary.timeline.horizon,760,interval)
+  const wrapper=new Vue({...rowComponent,propsData:{row:queuedJob,axis,highlight:'miss'}})
+  const renderer=new Vue({...wrapper.$options.components.MixedTaskLines,propsData:{
+    eventInformations:wrapper.eventInformations,eventTimePoints:wrapper.eventTimePoints,
+    timeAxisLength:axis.columns,axisCellWidth:axis.cellWidth,criticalitySwitchTime:-1
+  }})
+  const blocks=[]
+  const collect = vnode => {
+    if(vnode.data && vnode.data.class==='queued-block')blocks.push(vnode)
+    ;(vnode.children || []).forEach(collect)
+  }
+  collect(renderer._render())
+  assert.equal(blocks.length,1)
+  assert(Math.abs(parseFloat(blocks[0].data.style.left)-100*axis.pixelsPerMs)<1e-8)
+  assert(Math.abs(parseFloat(blocks[0].data.style.width)-14*axis.pixelsPerMs)<1e-8)
+  const drawnMs=wrapper.eventInformations.reduce((sum,e)=>sum+(e.endTime-e.startTime)*80/axis.pixelsPerMs,0)
+  assert(Math.abs(drawnMs-(queuedJob.observationEnd-queuedJob.release))<1e-8)
+}
+const legend=new Vue(loadComponent(path.join(__dirname,'../src/components/GanttStateLegend.vue')))
+assert(texts(legend._render()).includes('queued（等待同一任务的前序作业）'))
 const skipped=fixture('rta-skipped-test.json')
 for(const task of skipped.systemTasks) {
   assert.equal(task.nonConvergent,false)

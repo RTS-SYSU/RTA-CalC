@@ -19,9 +19,9 @@ export default {
   name: 'GanttRow', components: { MixedTaskLines },
   props: { row: { type: Object, required: true }, axis: { type: Object, required: true }, highlight: String },
   computed: {
-    eventInformations() { return this.row.states.filter(s => ['executing','interference','idle'].includes(s.state))
+    eventInformations() { return this.row.states.filter(s => ['executing','interference','queued','idle'].includes(s.state))
       .map(s => ({ staticPid: s.id == null ? -1 : s.id, dynamicPid: s.id,
-        state: s.state === 'executing' ? 'normal-execution' : s.state === 'idle' ? 'spare' : 'interference',
+        state: s.state === 'executing' ? 'normal-execution' : s.state === 'idle' ? 'spare' : s.state,
         startTime: s.start * this.axis.pixelsPerMs / 80, endTime: s.end * this.axis.pixelsPerMs / 80 })) },
     eventTimePoints() { return this.row.events.filter(e => ['release','completion'].includes(e.event))
       .map(e => ({ event: e.event, eventTime: e.time * this.axis.pixelsPerMs / 80, staticPid: e.id, dynamicPid: e.jobId })) },
@@ -36,6 +36,7 @@ export default {
 .mixed-source ::v-deep .chart-item { width: var(--tick-width); }
 /* RTA annotation: geometry is calculated by mixed's duration(). */
 .mixed-source ::v-deep .interference-block { position: absolute; top: 40px; height: 40px; border: 2px dashed black; box-sizing: border-box; background: white; }
+.mixed-source ::v-deep .queued-block { position: absolute; top: 40px; height: 40px; border: 2px solid #626b73; box-sizing: border-box; background: repeating-linear-gradient(135deg, #edf0f2 0, #edf0f2 5px, #aab2ba 5px, #aab2ba 7px); }
 .row.pass ::v-deep .normal-execution-block { background-color: #35a65e; }
 .row.miss ::v-deep .normal-execution-block { background-color: #e35c5c; }
 </style>

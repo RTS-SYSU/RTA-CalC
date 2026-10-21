@@ -1,0 +1,74 @@
+
+{
+  "system": {
+    "core_count": 1
+  },
+  "tasks": [
+    {
+      "id": 1,
+      "name": "SwLatA",
+      "function": "",
+      "partition": 0,
+      "priority": 3,
+      "period": 33.6,
+      "phase": 0.0,
+      "deadline": 33.6,
+      "WCET": 8.0
+    },
+    {
+      "id": 2,
+      "name": "PwrCalc",
+      "function": "",
+      "partition": 0,
+      "priority": 8,
+      "period": 200.0,
+      "phase": 0.0,
+      "deadline": 200.0,
+      "WCET": 5.0
+    },
+    {
+      "id": 3,
+      "name": "LVGL",
+      "function": "",
+      "partition": 0,
+      "priority": 15,
+      "period": 33.0,
+      "phase": 0.0,
+      "deadline": 30.0,
+      "WCET": 25.0
+    },
+    {
+      "id": 4,
+      "name": "LwipStress",
+      "function": "",
+      "partition": 0,
+      "priority": 20,
+      "period": 1000.0,
+      "phase": 0.0,
+      "deadline": 2000.0,
+      "WCET": 5.0
+    },
+    {
+      "id": 5,
+      "name": "PMTask",
+      "function": "",
+      "partition": 0,
+      "priority": 25,
+      "period": 200.0,
+      "phase": 0.0,
+      "deadline": 200.0,
+      "WCET": 2.0
+    },
+    {
+      "id": 6,
+      "name": "OMTask",
+      "function": "",
+      "partition": 0,
+      "priority": 29,
+      "period": 1000.0,
+      "phase": 0.0,
+      "deadline": 1000.0,
+      "WCET": 5.0
+    }
+  ]
+}
